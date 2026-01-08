@@ -1,13 +1,20 @@
 from raven import Raven
 
+CHANNEL_1 = Raven.MotorChannel.CH1
+CHANNEL_2 = Raven.MotorChannel.CH2
+
 raven_board = Raven()
 
-raven_board.set_motor_mode(Raven.MotorChannel.CH1, Raven.MotorMode.DIRECT) # Set motor mode to DIRECT
+# Set both motors to DIRECT mode
+raven_board.set_motor_mode(CHANNEL_1, Raven.MotorMode.DIRECT)
+raven_board.set_motor_mode(CHANNEL_2, Raven.MotorMode.DIRECT)
 
-# Speed controlled:
-raven_board.set_motor_torque_factor(Raven.MotorChannel.CH1, 100) # Let the motor use all the torque to get to speed factor
-raven_board.set_motor_speed_factor(Raven.MotorChannel.CH1, 10, reverse=True) # Spin at 10% max speed in reverse
+# Motor 1
+raven_board.set_motor_torque_factor(CHANNEL_1, 100)
+raven_board.set_motor_speed_factor(CHANNEL_1, 30)
 
-# Torque controlled:
-raven_board.set_motor_speed_factor(Raven.MotorChannel.CH1, 100) # Make motor try to run at max speed forward
-raven_board.set_motor_torque_factor(Raven.MotorChannel.CH1, 10) # Let it use up to 10% available torque
+# Motor 2
+raven_board.set_motor_torque_factor(CHANNEL_2, 100)
+raven_board.set_motor_speed_factor(CHANNEL_2, 30, reverse=True)
+while True:
+    pass
