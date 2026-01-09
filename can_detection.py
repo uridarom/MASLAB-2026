@@ -42,26 +42,46 @@ def generate_frames():
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
+        rectangles = []
         for cnt in contours:
-            RATIO_TOLERENCE = 0.1
+            RATIO_TOLERENCE = 0.15
             # Rectangular bounding box
             x, y, w, h = cv2.boundingRect(cnt)
 
-            area = cv2.contourArea(cnt)
-            if area < 500:
-                continue
-
             # Must fit reasonable aspect ratio range
-            aspect_ratio = h / float(w)
-            if aspect_ratio > 1.50+RATIO_TOLERENCE or aspect_ratio < 1.50-RATIO_TOLERENCE:
-                continue
+            if y > 2 and x > 2 and x < 1278:
+                aspect_ratio = h / float(w)
+                if aspect_ratio > 1.50+RATIO_TOLERENCE or aspect_ratio < 1.50-RATIO_TOLERENCE:
+                    continue
+            
+            rectangles.append((x, y, w, h))
+        
+        def boxes_overlap(a, b):
+            ax, ay, aw, ah = a
+            bx, by, bw, bh = b
 
-            # Draw lowest point
-            lowest_point = (int(x + w/2), y + h)
-            cv2.circle(frame, lowest_point, 8, (255, 0, 0), -1)
+            return not (
+                ax + aw < bx or
+                bx + bw < ax or
+                ay + ah < by or
+                by + bh < ay
+            )
 
-            # Draw bounding box
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        for rect in rectangles:
+            keep = True
+            for ref_rect in rectangles:
+                if boxes_overlap(rect, ref_rect):
+                    if rect[2]*rect[3] < ref_rect[2]*ref_rect[3] or rect[2]*rect[3]<750:
+                        keep = False
+                        break
+
+            if keep:
+                # Draw lowest point
+                lowest_point = (int(x + w/2), y + h)
+                cv2.circle(frame, lowest_point, 8, (255, 0, 0), -1)
+
+                # Draw bounding box
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
         # Encode frame as JPEG
         _, buffer = cv2.imencode(".jpg", frame)
