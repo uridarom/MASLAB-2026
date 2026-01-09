@@ -33,5 +33,8 @@ def main(stdscr):
             raven.set_motor_speed_factor(CHANNEL_1, 0)
             raven.set_motor_speed_factor(CHANNEL_2, 0)
             break
+        else:
+            raven.set_motor_speed_factor(CHANNEL_1, 0)
+            raven.set_motor_speed_factor(CHANNEL_2, 0)
 
 curses.wrapper(main)
