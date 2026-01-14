@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 from flask import Flask, Response
 import motor_control
+from constants import WIDTH, HEIGHT, AREA_MIN, RATIO_TOLERENCE
 
+# Checks if box a and box b overlap
 def boxes_overlap(a, b):
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
@@ -14,7 +16,8 @@ def boxes_overlap(a, b):
         by + bh < ay
     )
 
-def generate_frames():
+# Creates video output and commands motors
+def generate_frames(cap):
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -44,17 +47,17 @@ def generate_frames():
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
+        # Create list of potential objects
         rectangles = []
         for cnt in contours:
-            RATIO_TOLERENCE = 0.2
             # Rectangular bounding box
             x, y, w, h = cv2.boundingRect(cnt)
 
-            if w*h < 5000:
+            if w*h < AREA_MIN:
                 continue
 
             # Must fit reasonable aspect ratio range, unless cut off by FOV
-            if y > 2 and x > 2 and x < 1278:
+            if y > 2 and x > 2 and x < WIDTH-2:
                 aspect_ratio = h / float(w)
                 if aspect_ratio > 1.50+RATIO_TOLERENCE or aspect_ratio < 1.50-RATIO_TOLERENCE:
                     continue
@@ -81,6 +84,7 @@ def generate_frames():
                 cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 255, 0), 2)
         
         closest_point = (int(closest[0] + closest[2]/2), closest[1] + closest[3])
+        # Direct motors to go to point
         motor_control.go_to(closest_point[0], closest_point[1])
 
         cv2.imshow("Webcam", frame)
@@ -96,8 +100,8 @@ def begin_tracking():
 
     # Open and set up webcam
     cap = cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG")) # Enable image compression
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Set to manual exposure mode
     cap.set(cv2.CAP_PROP_EXPOSURE, -7)  # Set exposure time to 2^-7 = 1/128 second
@@ -109,7 +113,7 @@ def begin_tracking():
         raise RuntimeError("Could not open webcam")
 
     # Begin
-    generate_frames()
+    generate_frames(cap)
 
     # Cleanup (at the end)
     cap.release()
