@@ -1,4 +1,13 @@
-import can_detection
+import sys
+from MaslabRobot import MaslabRobot
 
 if __name__ == "__main__":
-    can_detection.begin_tracking()
+    # Optional argument to disable motors
+    motors = True
+    if len(sys.argv)==2:
+        if sys.argv[1].lower() == "false":
+            motors = False
+            print("ROBOT: Driving Disabled")
+    
+    robot = MaslabRobot(motor_action=motors)
+    robot.begin_tracking()
