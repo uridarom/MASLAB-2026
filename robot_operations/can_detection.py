@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from . import motor_control
+from . import bounds_check
 
 # Global variables for mouse position
 mouse_x = -1
@@ -25,15 +26,27 @@ def boxes_overlap(a, b):
         by + bh < ay
     )
 
+def get_lowest_point(rect):
+    return (int(rect[0] + rect[2]/2), rect[1] + rect[3])
+
 # Creates video output and commands motors
 def generate_frames(cap, robot):
+    coord_form = ((0, 0, 0, 0), 0)
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Red detection 
+        # HSV conversion 
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        img = hsv.astype("float32")
+        h, s, v = cv2.split(img)
+        s = s * robot.saturation_factor
+        s = np.clip(s, 0, 255)
+        hsv = cv2.merge([h, s, v])
+
+        frame, longest_line, coord_form = bounds_check.get_bounds(frame, hsv, coord_form, robot)
 
         # Hue / Saturation / Brightness ranges
         lower_red1 = np.array([0, robot.color_tolerences[1], robot.color_tolerences[2]])
@@ -84,20 +97,28 @@ def generate_frames(cap, robot):
                         break
 
             if keep:
-                if rect[1]>closest[1]:
+                # Check if object is within bounds
+                lowest_point = get_lowest_point(rect)
+                point_color = (255, 0, 0)
+                in_bounds = True
+                if longest_line is not None:
+                    if lowest_point[1]<longest_line[0]+longest_line[1]*lowest_point[0]-robot.boundry_padding:
+                        in_bounds = False
+                        point_color = (255, 0, 255)
+                closest_point = get_lowest_point(closest)
+                if lowest_point[1]>closest_point[1] and in_bounds:
                     closest = rect
-                # Draw lowest point
-                lowest_point = (int(rect[0] + rect[2]/2), rect[1] + rect[3])
-                cv2.circle(frame, lowest_point, 8, (255, 0, 0), -1)
-
+                
                 # Draw bounding box
                 cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 255, 0), 2)
-        
-        closest_point = (int(closest[0] + closest[2]/2), closest[1] + closest[3])
 
+                # Draw lowest point
+                cv2.circle(frame, lowest_point, 8, point_color, -1)
+        
+        closest_point = get_lowest_point(closest)
         # Direct motors to go to point (if enabled)
         if robot.motor_action:
-            turn_factor, distance = motor_control.go_to(closest_point[0], closest_point[1], robot)
+            turn_factor, distance, stopped = motor_control.go_to(closest_point[0], closest_point[1], robot)
             # Show driving variables on video
             cv2.putText(frame, f"Turn Factor: {turn_factor:.4f}", (760, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             cv2.putText(frame, f"Distance: {distance}", (760, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
@@ -113,8 +134,10 @@ def generate_frames(cap, robot):
         # Process GUI events and allow window to update
         key = cv2.waitKey(1) & 0xFF
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        if robot.motor_action:
+            if stopped:
+                pass
+                # print("Arrived At Object")
 
 # Start can detection and following
 def begin_tracking(robot):

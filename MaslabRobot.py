@@ -26,7 +26,11 @@ class MaslabRobot:
         # Offset to counter left-turning tendency
         right_offset = 0.93, 
         # How many revolutions of the wheel robot should continue after reaching distance threshold
-        roll_from_stop = 2.5
+        roll_from_stop = 2.5,
+        # How much to increase image saturation
+        saturation_factor = 3,
+        # How far past a boundry can the robot target (in pixels)
+        boundry_padding = 0
     ):
         ''' ------------ can_detection.py ------------ '''
         self.video_width = video_width
@@ -35,6 +39,8 @@ class MaslabRobot:
         self.ratio_tolerence = ratio_tolerence
         self.motor_action = motor_action
         self.color_tolerences = color_tolerences
+        self.saturation_factor = saturation_factor
+        self.boundry_padding = boundry_padding
 
         ''' ------------ motor_control.py ------------ '''
         self.speed = speed

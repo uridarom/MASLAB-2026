@@ -14,6 +14,7 @@ for channel in (CHANNEL_1, CHANNEL_2):
 
 # Goes to specific point
 def go_to(x, y, robot):
+    stopped = False
     distance = robot.video_height-y
     # Determine turning direction and magnitude
     turn_factor = (1-float(x)/(robot.video_width/2))*distance/robot.video_height
@@ -21,6 +22,7 @@ def go_to(x, y, robot):
     # Set motor speeds
     # Stop if object is close enough
     if abs(turn_factor) < robot.slowdown_tolerence and distance<=robot.slowdown_tolerence:
+        stopped = True
         for channel in (CHANNEL_1, CHANNEL_2):
             # Reset encoder
             raven.set_motor_encoder(channel, 0)
@@ -35,12 +37,18 @@ def go_to(x, y, robot):
         raven.set_motor_target(CHANNEL_1, -440*robot.roll_from_stop)
         raven.set_motor_target(CHANNEL_2, 440*robot.roll_from_stop)
     else:
-        # Set speeds
-        speed_1 = min(100, max(0, robot.speed*(1-2*turn_factor)))
-        speed_2 = min(100, max(0, robot.speed*(1+2*turn_factor)*robot.right_offset))
+        # Spin in circles if no object was found
+        if x == 640 and y == 0:
+            speed_1 = 10
+            speed_2 = -10
+        else:
+            # Set speeds
+            speed_1 = min(100, max(0, robot.speed*(1-turn_factor)))
+            speed_2 = min(100, max(0, robot.speed*(1+turn_factor)*robot.right_offset))
 
         # Command motors
-        raven.set_motor_speed_factor(CHANNEL_1, speed_1, reverse=True)
-        raven.set_motor_speed_factor(CHANNEL_2, speed_2, reverse=False)
 
-    return turn_factor, distance
+        raven.set_motor_speed_factor(CHANNEL_1, abs(speed_1), reverse=speed_1>0)
+        raven.set_motor_speed_factor(CHANNEL_2, abs(speed_2), reverse=speed_2<0)
+
+    return turn_factor, distance, stopped
