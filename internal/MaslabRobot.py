@@ -1,5 +1,6 @@
 from raven import Raven
-from robot_operations.can_detection import begin_tracking
+from world.World import World
+from robot.Robot import Robot
 
 class MaslabRobot:
 
@@ -26,13 +27,14 @@ class MaslabRobot:
         # Offset to counter left-turning tendency
         right_offset = 0.93, 
         # How many revolutions of the wheel robot should continue after reaching distance threshold
-        roll_from_stop = 2.5,
+        roll_from_stop = 4.5,
         # How much to increase image saturation
         saturation_factor = 3,
         # How far past a boundry can the robot target (in pixels)
-        boundry_padding = 0
+        boundry_padding = 0,
+        # Should the robot spin in circles if no can is found
+        idle_spinning = True
     ):
-        ''' ------------ can_detection.py ------------ '''
         self.video_width = video_width
         self.video_height = video_height
         self.area_min = area_min
@@ -41,15 +43,15 @@ class MaslabRobot:
         self.color_tolerences = color_tolerences
         self.saturation_factor = saturation_factor
         self.boundry_padding = boundry_padding
-
-        ''' ------------ motor_control.py ------------ '''
         self.speed = speed
         self.slowdown_tolerence = slowdown_tolerence
         self.slowdown_trigger = slowdown_trigger
         self.right_offset = right_offset
         self.roll_from_stop = roll_from_stop
+        self.idle_spinning = idle_spinning
 
-    # Track cans
-    def begin_tracking(self):
-        print("ROBOT: Beginning can tracking")
-        begin_tracking(self)
+        self.CHANNEL_1 = Raven.MotorChannel.CH1
+        self.CHANNEL_2 = Raven.MotorChannel.CH2
+        self.ticks_lost = 0
+        self.world = World(self)
+        self.robot = Robot(self)
