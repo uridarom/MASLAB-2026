@@ -5,9 +5,10 @@ class World:
     def __init__(self, maslab):
         self.maslab = maslab
         self.wheels = WheelOdometry(
-            wheel_diameter = 9.8, 
-            track_width = 20.4, 
-            cpr = 1000)
+            self.maslab,
+            wheel_diameter = maslab.WHEEL_DIAMETER, 
+            track_width = maslab.TRACK_WIDTH, 
+            cpr = maslab.CPR)
         
         self.cans = []
         self.border = ((0, 0), (0, 0, 0, 0))

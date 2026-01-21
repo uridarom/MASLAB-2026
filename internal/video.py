@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from world import Can
 
 def create_video_frame(frame, maslab, mouse):
 
@@ -11,7 +12,6 @@ def create_video_frame(frame, maslab, mouse):
     # Map
     map_size = cam_h 
     boundry_size = cam_h-50
-    robot_size = 35
     # Canvas
     canvas_h = cam_h+40
     canvas_w = cam_w+map_size+60
@@ -20,13 +20,16 @@ def create_video_frame(frame, maslab, mouse):
 
     padding = (canvas_h-cam_h)//2
 
+    ''' ============== Video ============== '''
+
     ############ Cans ############
 
     for can in maslab.world.cans:
-        # Draw bounding box
-        cv2.rectangle(frame, (can.rect[0], can.rect[1]), (can.rect[0] + can.rect[2], can.rect[1] + can.rect[3]), (0, 255, 0), 2)
-        # Draw lowest point
-        cv2.circle(frame, can.lowest_point, 8, (255, 0, 0) if can.in_bounds else (255, 0, 255), -1)
+        if can.in_view and can.confirmed:
+            # Draw bounding box
+            cv2.rectangle(frame, (can.rect[0], can.rect[1]), (can.rect[0] + can.rect[2], can.rect[1] + can.rect[3]), (0, 255, 0), 2)
+            # Draw lowest point
+            cv2.circle(frame, can.lowest_point, 8, (255, 0, 0) if can.in_bounds else (255, 0, 255), -1)
     
     ########### Border ###########
 
@@ -39,10 +42,13 @@ def create_video_frame(frame, maslab, mouse):
         text = f"H:{h} S:{s} V:{v}"
         cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
-    ############ Map ############
+    ''' ============== Map ============== '''
 
+    # Create
     game_map = np.ones((map_size, map_size, 3), dtype=np.uint8) * 255
-    # Draw competition borders
+    diff = (map_size-boundry_size)/2
+
+    ########### Borders ###########
     cv2.rectangle(
         game_map,
         (map_size//2 - boundry_size//2, 0),
@@ -50,21 +56,46 @@ def create_video_frame(frame, maslab, mouse):
         (255, 75, 75),
         2
     ) 
-    
-    # Draw robot
-    diff = (map_size-boundry_size)/2
-    rot_rect = (((map_size-maslab.world.wheels.x)-(diff+robot_size/2), 
-                    (map_size-maslab.world.wheels.y)-(diff+boundry_size/2)), 
-                    (robot_size, robot_size), int(maslab.world.wheels.theta*180/np.pi))
-    box = cv2.boxPoints(rot_rect)
-    box = np.int32(box)
-    cv2.drawContours(game_map, [box], 0, (0, 0, 0), -1)
 
-    # Draw Text
-    for i, val in enumerate((maslab.world.wheels.x, maslab.world.wheels.y, maslab.world.wheels.theta*180/np.pi)):
-        cv2.putText(game_map, f"Y: {(val):.1f}", (padding+75*i, boundry_size+padding+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    ########### Cans ###########
+    for can in maslab.world.cans:
+        if can.confirmed:
+            color_mod = 0 if can.in_view else -75
+            # Draw can on map
+            cv2.circle(game_map, 
+            (int((map_size-can.coords[0])-(diff+maslab.robot_size/2)), 
+            int((map_size-can.coords[1])-(diff+boundry_size/2))), 
+            16, (0, 255+color_mod, 0) if can.color==Can.CanColor.GREEN else (0, 0, 255+color_mod), -1)
     
-    ############ COMBINING ############
+    ########### Robot ###########
+    w = maslab.robot_size
+    h = maslab.robot_size * 1.2
+
+    triangle = np.array([
+        [-w/2,  h/2],
+        [ w/2,  h/2],
+        [ 0.0, -h/2],
+    ], dtype=np.float32)
+
+    theta = maslab.world.wheels.theta - np.pi/2
+    R = np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta),  np.cos(theta)]
+    ], dtype=np.float32)
+
+    triangle = triangle @ R.T
+    triangle[:, 0] += (map_size-maslab.world.wheels.x)-(diff+maslab.robot_size/2)
+    triangle[:, 1] += (map_size-maslab.world.wheels.y)-(diff+boundry_size/2)
+
+    cv2.drawContours(game_map, [triangle.astype(np.int32)], 0, (0, 0, 0), -1)
+
+    ########### Text ###########
+    cv2.putText(game_map, f"X: {(maslab.world.wheels.x):.1f}", (padding, boundry_size+padding+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(game_map, f"Y: {(maslab.world.wheels.y):.1f}", (padding+120, boundry_size+padding+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(game_map, f"O: {(maslab.world.wheels.theta*180/np.pi):.1f}", (padding+120*2, boundry_size+padding+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(game_map, f"Turn Factor: {(maslab.robot.turn_factor):.4f}", (padding+120*3, boundry_size+padding+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
+    ''' ============== Combining ============== '''
 
     # Update canvas
     canvas[padding:cam_h+padding, padding:cam_w+padding] = frame

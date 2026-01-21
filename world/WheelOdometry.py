@@ -1,11 +1,10 @@
 import numpy as np
 from raven import Raven
 
-raven = Raven()
-
 class WheelOdometry:
     def __init__(
         self,
+        maslab,
         wheel_diameter: float,
         track_width: float,
         cpr: int,
@@ -19,6 +18,7 @@ class WheelOdometry:
         self.__WHEEL_MOTOR_MPC = self.__WHEEL_DIAMETER * np.pi / cpr  # Distance per count
         self.__left_encoder = left_encoder_init
         self.__right_encoder = right_encoder_init
+        self.maslab = maslab
 
     def reset(self):
         self.__x = 0.0
@@ -41,8 +41,8 @@ class WheelOdometry:
         return f"x: {self.x}\ny: {self.y}\nheading: {self.theta * 180/np.pi} degree"
 
     def update(self):
-        left_encoder = raven.get_motor_encoder(Raven.MotorChannel.CH1)
-        right_encoder = raven.get_motor_encoder(Raven.MotorChannel.CH2)
+        left_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH1)
+        right_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH2)
         # Get encoder change
         d_left_encoder = left_encoder - self.__left_encoder
         d_right_encoder = right_encoder - self.__right_encoder
@@ -52,8 +52,8 @@ class WheelOdometry:
         self.__right_encoder = right_encoder
 
         # Get distance change
-        d_left_distance = -d_left_encoder * self.__WHEEL_MOTOR_MPC
-        d_right_distance = d_right_encoder * self.__WHEEL_MOTOR_MPC
+        d_left_distance = d_left_encoder * self.__WHEEL_MOTOR_MPC
+        d_right_distance = -d_right_encoder * self.__WHEEL_MOTOR_MPC
 
         ###### TODO: Calculate changes ###### 
         d_theta = (d_left_distance - d_right_distance) / self.__TRACK_WIDTH

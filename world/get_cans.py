@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from raven import Raven
 from world import Can
 from world.World import World
 
@@ -64,9 +63,11 @@ def update_cans(self, hsv):
             continue
         
         rectangles.append((x, y, w, h))
+    
+    for can in self.cans:
+        can.in_view = False
 
     closest = (640, 0, 0, 0)
-    cans = []
     # Check for overlap, remove smaller boxes if present
     for rect in rectangles:
         keep = True
@@ -76,8 +77,12 @@ def update_cans(self, hsv):
                     keep = False
                     break
         if keep:
-            can = Can.Can(rect, Can.CanColor.RED)
-            cans.append(can)
+            can = Can.Can(self, rect, Can.CanColor.RED)
+            for i, old_can in enumerate(self.cans):
+                if np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)<self.maslab.can_proximity_tolerence:
+                    self.cans[i].update(rect)
+            self.cans.append(can)
+                
             # # Check if object is within bounds
             # lowest_point = get_lowest_point(rect)
             # point_color = (255, 0, 0)
@@ -115,6 +120,5 @@ def update_cans(self, hsv):
     #                 break
     #         print("Arrived At Object")
     #         break
-    self.cans = cans
 
 World.update_cans = update_cans

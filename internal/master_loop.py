@@ -1,14 +1,12 @@
 from internal.MaslabRobot import MaslabRobot
 from internal import video
-from robot import motor_control
-from raven import Raven
 import cv2
 import numpy as np
+
 
 # Global variables for mouse position
 mouse_x = -1
 mouse_y = -1
-raven = Raven()
 
 # Get mouse position
 def mouse_callback(event, x, y, flags, param):
@@ -47,7 +45,10 @@ def generate_frame(maslab, cap):
                 if can.lowest_point[1]<closest.lowest_point[1]:
                     closest = can
             
-            maslab.robot.go_to(closest.lowest_point[0], closest.lowest_point[1])
+            if not maslab.robot.aligned:
+                maslab.robot.go_to_can(closest.lowest_point[0], closest.lowest_point[1])
+            else:
+                maslab.robot.take_can()
 
         ########### VIDEO CREATION ###########
 
@@ -69,7 +70,7 @@ def begin_game_loop(self):
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Set to manual exposure mode
     cap.set(cv2.CAP_PROP_EXPOSURE, -7)  # Set exposure time to 2^-7 = 1/128 second
     cap.set(cv2.CAP_PROP_AUTO_WB, 0.0) # Disable auto white balance
-    cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 4200) # Set white balance temperature to 4200K
+    cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 3500) # Set white balance temperature to 4200K
     cap.set(cv2.CAP_PROP_FPS, 30) # Set frames per second
 
     if not cap.isOpened():
