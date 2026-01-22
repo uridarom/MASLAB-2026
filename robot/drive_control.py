@@ -48,4 +48,3 @@ def go_to_can(self, X, Y):
             self.maslab.raven.set_motor_speed_factor(self.maslab.CHANNEL_2, abs(speed_2), reverse=speed_2>0)
 
 Robot.go_to_can = go_to_can
-Robot.go_to_real_point = go_to_real_point

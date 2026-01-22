@@ -37,10 +37,18 @@ def create_video_frame(frame, maslab, mouse):
     cv2.line(frame, (maslab.world.border[1][0], maslab.world.border[1][1]), (maslab.world.border[1][2], maslab.world.border[1][3]), (255, 0, 255), 3)
 
     ########### Mouse ###########
+    mouse = (mouse[0]*2, mouse[1]*2)
     if mouse[0] >= 0 and mouse[1] >= 0 and mouse[0] < maslab.video_width and mouse[1] < maslab.video_height:
         h, s, v = hsv[mouse[1], mouse[0]]
         text = f"H:{h} S:{s} V:{v}"
         cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    ########### Goal ###########
+    
+    quad = maslab.world.get_goal(hsv, frame)
+
+    if quad is not None:
+        cv2.drawContours(frame, [quad], -1, (0, 255, 0), 3)
     
     ''' ============== Map ============== '''
 
