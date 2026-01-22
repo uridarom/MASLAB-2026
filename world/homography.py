@@ -3,24 +3,26 @@ import cv2
 
 # Calibration points in image coordinates
 PTS_IMAGE_PLANE = [
-    [654, 291],
-    [654, 372],
-    [654, 549],
-    [133, 359],
-    [279, 283],
-    [1177, 385],
-    [1028, 301],
+    [615, 680],
+    [616, 616],
+    [616, 518],
+    [478, 615],
+    [751, 614],
+    [388, 519],
+    [842, 518],
+    [271, 617],
 ]
 
 # Calibration points in real world coordinates
 PTS_GROUND_PLANE = [
-    [1.0112375, 0.0000],
-    [0.7064375, 0.0000],
-    [0.4016375, 0.0000],
-    [0.7064375, -0.3048],
-    [1.0112375, -0.3048],
-    [0.7064375, 0.3048],
-    [1.0112375, 0.3048],
+    [0, 46.7],
+    [0, 50.7],
+    [0, 58.7],
+    [-4, 50.7],
+    [4, 50.7],
+    [-8, 58.7],
+    [8, 58.7],
+    [-10, 50.7],
 ]
 
 # Compute homography
@@ -38,7 +40,6 @@ def transform_uv_to_xy(u, v):
     xy = np.dot(h, homogeneous_point)
     scaling_factor = 1.0 / xy[2, 0]
     homogeneous_xy = xy * scaling_factor
-    x = homogeneous_xy[0, 0]*100
-    y = homogeneous_xy[1, 0]*100
+    x = homogeneous_xy[0, 0]
+    y = homogeneous_xy[1, 0]
     return x, y
-

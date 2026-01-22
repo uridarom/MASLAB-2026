@@ -3,7 +3,6 @@ from internal import video
 import cv2
 import numpy as np
 
-
 # Global variables for mouse position
 mouse_x = -1
 mouse_y = -1
@@ -21,7 +20,7 @@ def generate_frame(maslab, cap):
         if not ret:
             break
         
-        ''' ================= BEGIN LOGIC ================= '''
+        ''' ================= BEGIN GAME LOGIC ================= '''
 
         # HSV conversion 
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -39,14 +38,18 @@ def generate_frame(maslab, cap):
 
         ########## ROBOT OPERATIONS ##########
 
-        if maslab.motor_action and len(maslab.world.cans)>0:
+        if maslab.motor_action and len(maslab.world.cans)>0 and not maslab.robot.pursuing_can:
             closest = maslab.world.cans[0]
             for can in maslab.world.cans[1:]:
-                if can.lowest_point[1]<closest.lowest_point[1]:
+                if can.lowest_point[1]<closest.lowest_point[1] and can.confirmed:
                     closest = can
             
+            maslab.robot.active_can = closest
+            maslab.robot.pursuing_can = True
+
+        if maslab.robot.pursuing_can:
             if not maslab.robot.aligned:
-                maslab.robot.go_to_can(closest.lowest_point[0], closest.lowest_point[1])
+                maslab.robot.go_to_can(maslab.robot.active_can.coords[0], maslab.robot.active_can.coords[1])
             else:
                 maslab.robot.take_can()
 
@@ -54,7 +57,7 @@ def generate_frame(maslab, cap):
 
         frame = video.create_video_frame(frame, maslab, (mouse_x, mouse_y))
 
-        ''' ================== END LOGIC ================== '''
+        ''' ================== END GAME LOGIC ================== '''
 
         cv2.imshow("Webcam", frame)
         # Process GUI events and allow window to update

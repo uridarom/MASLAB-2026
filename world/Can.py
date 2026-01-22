@@ -27,7 +27,7 @@ class Can:
         x, y = homography.transform_uv_to_xy(self.lowest_point[0], self.lowest_point[1])
         self.coords = (self.world.wheels.x + x, self.world.wheels.y + y)
 
-        if self.replaced == 10:
+        if self.replaced == 5:
             self.confirmed = True
         else:
             self.replaced += 1

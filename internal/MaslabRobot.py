@@ -59,13 +59,14 @@ class MaslabRobot:
         self.CHANNEL_1 = Raven.MotorChannel.CH1
         self.CHANNEL_2 = Raven.MotorChannel.CH2
         self.CHANNEL_3 = Raven.MotorChannel.CH3
-        self.WHEEL_DIAMETER = 9.8
-        self.TRACK_WIDTH = 20.4
+        self.WHEEL_DIAMETER = 9.844
+        self.WHEEL_WIDTH = 2.000
+        self.TRACK_WIDTH = 23.37
         self.CPR = 3200
 
         self.ticks_lost = 0
 
+        self.raven = Raven()
         self.world = World(self)
         self.robot = Robot(self)
-        self.raven = Raven()
         

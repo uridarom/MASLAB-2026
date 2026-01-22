@@ -47,6 +47,8 @@ def create_video_frame(frame, maslab, mouse):
     # Create
     game_map = np.ones((map_size, map_size, 3), dtype=np.uint8) * 255
     diff = (map_size-boundry_size)/2
+    def to_map_coords(coords):
+        return (int(coords[0]+map_size/2+diff), int(-coords[1]+map_size-2*diff))
 
     ########### Borders ###########
     cv2.rectangle(
@@ -62,12 +64,12 @@ def create_video_frame(frame, maslab, mouse):
         if can.confirmed:
             color_mod = 0 if can.in_view else -75
             # Draw can on map
-            cv2.circle(game_map, 
-            (int((map_size-can.coords[0])-(diff+maslab.robot_size/2)), 
-            int((map_size-can.coords[1])-(diff+boundry_size/2))), 
-            16, (0, 255+color_mod, 0) if can.color==Can.CanColor.GREEN else (0, 0, 255+color_mod), -1)
+            cv2.circle(game_map, (int(can.coords[0]+map_size/2+diff), map_size-int(can.coords[1])), 
+                       16, (0, 255+color_mod, 0) if can.color==Can.CanColor.GREEN else (0, 0, 255+color_mod), -1)
     
     ########### Robot ###########
+
+    # Create rotated triangle to represent robot
     w = maslab.robot_size
     h = maslab.robot_size * 1.2
 
@@ -77,15 +79,16 @@ def create_video_frame(frame, maslab, mouse):
         [ 0.0, -h/2],
     ], dtype=np.float32)
 
-    theta = maslab.world.wheels.theta - np.pi/2
+    theta = maslab.world.wheels.theta
     R = np.array([
         [np.cos(theta), -np.sin(theta)],
         [np.sin(theta),  np.cos(theta)]
     ], dtype=np.float32)
 
+    robot_coords = to_map_coords((maslab.world.wheels.x, maslab.world.wheels.y))
     triangle = triangle @ R.T
-    triangle[:, 0] += (map_size-maslab.world.wheels.x)-(diff+maslab.robot_size/2)
-    triangle[:, 1] += (map_size-maslab.world.wheels.y)-(diff+boundry_size/2)
+    triangle[:, 0] += robot_coords[0]
+    triangle[:, 1] += robot_coords[1]-maslab.robot_size*1.2/2
 
     cv2.drawContours(game_map, [triangle.astype(np.int32)], 0, (0, 0, 0), -1)
 

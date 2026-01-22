@@ -51,10 +51,9 @@ def update_cans(self, hsv):
             continue
 
         # Must fit reasonable aspect ratio range, unless cut off by FOV
-        if y > 2 and x > 2 and x < self.maslab.video_width-2:
-            aspect_ratio = h / float(w)
-            if aspect_ratio > 1.50+self.maslab.ratio_tolerence or aspect_ratio < 1.50-self.maslab.ratio_tolerence:
-                continue
+        aspect_ratio = h / float(w)
+        if aspect_ratio > 1.50+self.maslab.ratio_tolerence or aspect_ratio < 1.50-self.maslab.ratio_tolerence:
+            continue
         
         # How well contour fills the bounding box
         rect_area = w * h
