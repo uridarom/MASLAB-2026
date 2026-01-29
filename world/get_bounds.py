@@ -9,7 +9,7 @@ def get_length(line):
 
 def get_bounds(self, hsv):
     # Blue color range
-    lower_blue = np.array([90, 100, 110])
+    lower_blue = np.array([90, 170, 100])
     upper_blue = np.array([120, 255, 255])
 
     blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
@@ -121,7 +121,7 @@ def get_red_goal(self, hsv, frame):
     
 def get_green_goal(self, hsv, frame):
     # Get mask
-    lower_green = np.array([30, 60, 140])
+    lower_green = np.array([40, 120, 50])
     upper_green = np.array([60, 255, 255])
 
     mask_green = (cv2.inRange(hsv, lower_green, upper_green))

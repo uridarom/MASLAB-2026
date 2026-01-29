@@ -14,7 +14,7 @@ class MaslabRobot:
         # How far from the ideal (1.50) aspect ratio may an object be
         ratio_tolerence = 0.2, 
         # Should robot drive to can
-        motor_action = True, 
+        motor_action = False, 
 
         # Universal speed reference
         speed = 20, 
@@ -64,6 +64,7 @@ class MaslabRobot:
         self.TRACK_WIDTH = 23.5
         self.CPR = 3200
         self.wait_ticks = 0
+        self.ticks_lost = 0
 
         self.status = "MAPPING"
 

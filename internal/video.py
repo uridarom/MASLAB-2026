@@ -60,6 +60,7 @@ def create_video_frame(frame, maslab, mouse):
     
     ########### Status #############
     cv2.putText(frame, maslab.status, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(frame, f"Ticks Lost: {maslab.ticks_lost}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
     ########### Goals ###########
     

@@ -13,7 +13,6 @@ def set_encoder_position(self, right, left, relative, torque_r=1, torque_l=1):
     self.maslab.raven.set_motor_pid(self.maslab.CHANNEL_2, p_gain = 100, i_gain = 0, d_gain = 0, percent = torque_l*self.maslab.speed*self.maslab.left_offset)
     self.maslab.raven.set_motor_target(self.maslab.CHANNEL_2, target_2)
 
-
 def go_to(self, X, Y, rolling=5, relative=False, turn_only=False):
     if not relative:
         dx, dy = self.maslab.world.transform_to_robot(X, Y)
@@ -30,7 +29,7 @@ def go_to(self, X, Y, rolling=5, relative=False, turn_only=False):
     ################ Parameters ################
     ANGLE_DEADBAND = 0.5
     KP_TURN = 3.0
-    MAX_TURN = 0.09
+    MAX_TURN = 0.15
     BASE_SPEED = self.maslab.speed
 
     ################ Turn in place if very far off ################
@@ -38,10 +37,10 @@ def go_to(self, X, Y, rolling=5, relative=False, turn_only=False):
         self.rotating = False
         self.maslab.raven.set_motor_speed_factor(self.maslab.CHANNEL_1, 0)
         self.maslab.raven.set_motor_speed_factor(self.maslab.CHANNEL_2, 0)
+        self.maslab.wait_ticks = 25
         return
 
     if abs(angle_error) > ANGLE_DEADBAND or turn_only:
-        # self.maslab.status = "CORRECTING LARGE ANGULAR ERROR"
         self.turn_factor = 10
         turn = np.clip(angle_error, -MAX_TURN, MAX_TURN)
 
@@ -55,7 +54,7 @@ def go_to(self, X, Y, rolling=5, relative=False, turn_only=False):
 
     if not turn_only:
         ################ Drive straight forward when aligned ################
-        if abs(dy) < 5:
+        if abs(dy) < 10:
             self.turn_factor = 0
             self.aligned = True
             self.maslab.raven.set_motor_speed_factor(self.maslab.CHANNEL_1, 0)
@@ -63,11 +62,9 @@ def go_to(self, X, Y, rolling=5, relative=False, turn_only=False):
             return 40
 
         ################ Drive forward with steering ################
-        # self.maslab.status = "STEERING FORWARDS"
         turn = KP_TURN * angle_error * BASE_SPEED
         turn = np.clip(turn, -BASE_SPEED/2, BASE_SPEED/2)
         self.turn_factor = turn
-        print(self.turn_factor)
 
         left = BASE_SPEED - turn
         right = BASE_SPEED + turn

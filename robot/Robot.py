@@ -11,8 +11,11 @@ class Robot:
         self.target_position = None
         self.turned_around = False
         self.active_can = None
+        self.active_cans = []
         self.in_possession_of_can = False
         self.rotating = False
         self.depositing = False
         self.locked_can = False
         self.can_obligated = False
+        self.backing_up = False
+        self.backed_up = False

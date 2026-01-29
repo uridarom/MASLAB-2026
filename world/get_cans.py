@@ -110,17 +110,17 @@ def update_cans(self, mask, can_list, color):
                 can_list[best_index].update(rect)
                 replaced = True
             if not replaced:
-                if not self.maslab.robot.turn_factor>0:
+                if self.maslab.robot.turn_factor<0.5:
                     can_list.append(can)
     
     return can_list
                 
 def update_red_cans(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_red1 = np.array([0, 190, 80])
+    lower_red1 = np.array([0, 190, 50])
     upper_red1 = np.array([15, 255, 255])
 
-    lower_red2 = np.array([165, 190, 80])
+    lower_red2 = np.array([165, 190, 50])
     upper_red2 = np.array([180, 255, 255])
 
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -131,7 +131,7 @@ def update_red_cans(self, hsv):
 
 def update_yellow_can(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_yellow = np.array([20, 190, 150])
+    lower_yellow = np.array([20, 240, 90])
     upper_yellow = np.array([35, 255, 255])
 
     mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
@@ -140,7 +140,7 @@ def update_yellow_can(self, hsv):
 
 def update_green_cans(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_green = np.array([40, 90, 60])
+    lower_green = np.array([40, 90, 50])
     upper_green = np.array([70, 255, 255])
 
     mask_green = (cv2.inRange(hsv, lower_green, upper_green))

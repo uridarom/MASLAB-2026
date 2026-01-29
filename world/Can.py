@@ -32,11 +32,13 @@ class Can:
             self.coords = tuple(0.1 * np.array(new_coords) + (1 - 0.1) * np.array(self.coords))
             self.relative_coords = tuple(self.world.transform_uv_to_xy_relative(*self.lowest_point))
 
-            if self.replaced > 10:
+            if self.replaced > 5:
                 self.confirmed = True
             self.replaced += 1
 
             self.in_bounds = self.world.bounds.is_point_in_bounds(*self.coords)
+            if not self.in_bounds:
+                self.confirmed = False
         
     def distance_from_robot(self):
         x = self.coords[0] - self.world.wheels.x

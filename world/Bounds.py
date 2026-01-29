@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def get_slope(points):
     if points[1][0]-points[0][0] != 0:
@@ -26,23 +27,30 @@ class Bounds:
             if not added:
                 self.lines.append(BoundLine(self.world, p1, p2))
     
-    def crosses_line(self, x1, y1, x2, y2, a, b):
-        def side(x, y):
-            return (x2 - x1)*(y - y1) - (y2 - y1)*(x - x1)
+    def signed_distance(self, x1, y1, x2, y2, x, y):
+        num = (x2 - x1)*(y - y1) - (y2 - y1)*(x - x1)
+        den = math.hypot(x2 - x1, y2 - y1)
+        if den == 0:
+            return None
+        return num / den
 
-        s0 = side(0, 0)
-        sq = side(a, b)
+    def crosses_line(self, x1, y1, x2, y2, a, b, tol=5):
+        d_robot = self.signed_distance(x1, y1, x2, y2, 0, 0)
+        d_target = self.signed_distance(x1, y1, x2, y2, a, b)
 
-        if s0 == 0 or sq == 0:
-            return "on the line"
-        elif s0 * sq < 0:
-            return True
+        if d_robot is not None and d_target is not None:
+            # if either is within tolerance band, ignore
+            if abs(d_robot) < tol or abs(d_target) < tol:
+                return False
+
+            # crossing only if opposite sides
+            return d_robot * d_target < 0
         else:
             return False
 
     def is_point_in_bounds(self, x, y):
         for bound_line in self.lines:
-            if self.crosses_line(*bound_line.p1, *bound_line.p2, x, y):
+            if self.crosses_line(*bound_line.p1, *bound_line.p2, x, y) or y>360:
                 return False
         return True
 
