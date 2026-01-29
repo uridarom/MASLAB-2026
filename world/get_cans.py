@@ -3,32 +3,42 @@ import numpy as np
 from world import Can
 from world.World import World
 
-# Checks if box a and box b overlap
-def boxes_overlap(a, b):
-    ax, ay, aw, ah = a
-    bx, by, bw, bh = b
+def rect_to_vertices(x, y, w, h):
+    return np.array([
+        [x,     y],
+        [x+w,   y],
+        [x+w,   y+h],
+        [x,     y+h]
+    ])
 
-    return not (
-        ax + aw < bx or
-        bx + bw < ax or
-        ay + ah < by or
-        by + bh < ay
-    )
+def project(poly, axis):
+    dots = [np.dot(p, axis) for p in poly]
+    return min(dots), max(dots)
+
+def overlap_1d(a, b):
+    return not (a[1] < b[0] or b[1] < a[0])
+
+def axes(poly):
+    axes = []
+    for i in range(len(poly)):
+        p1 = poly[i]
+        p2 = poly[(i+1) % len(poly)]
+        edge = p2 - p1
+        normal = np.array([-edge[1], edge[0]])
+        normal = normal / np.linalg.norm(normal)
+        axes.append(normal)
+    return axes
+
+def polygons_overlap(poly1, poly2):
+    for axis in axes(poly1) + axes(poly2):
+        p1 = project(poly1, axis)
+        p2 = project(poly2, axis)
+        if not overlap_1d(p1, p2):
+            return False
+    return True
 
 # Creates video output and commands motors
-def update_cans(self, hsv):
-
-    # Hue / Saturation / Brightness ranges
-    lower_red1 = np.array([0, self.maslab.color_tolerences[1], self.maslab.color_tolerences[2]])
-    upper_red1 = np.array([self.maslab.color_tolerences[0], 255, 255])
-
-    lower_red2 = np.array([180-self.maslab.color_tolerences[0], self.maslab.color_tolerences[1], self.maslab.color_tolerences[2]])
-    upper_red2 = np.array([180, 255, 255])
-
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-    mask = mask1 | mask2
-
+def update_cans(self, mask, can_list, color):
     # Clean mask
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
@@ -50,11 +60,12 @@ def update_cans(self, hsv):
         if w*h < self.maslab.area_min:
             continue
 
-        # Must fit reasonable aspect ratio range, unless cut off by FOV
-        aspect_ratio = h / float(w)
-        if aspect_ratio > 1.50+self.maslab.ratio_tolerence or aspect_ratio < 1.50-self.maslab.ratio_tolerence:
+        # Ignore cans if cut off by FOV
+        if y < 2 or (y+h) > self.maslab.video_height-2:
             continue
-        
+        if h / w < 1:
+            continue
+
         # How well contour fills the bounding box
         rect_area = w * h
         extent = area / rect_area
@@ -63,61 +74,81 @@ def update_cans(self, hsv):
         
         rectangles.append((x, y, w, h))
     
-    for can in self.cans:
+    for can in can_list:
         can.in_view = False
 
-    closest = (640, 0, 0, 0)
     # Check for overlap, remove smaller boxes if present
     for rect in rectangles:
         keep = True
         for ref_rect in rectangles:
-            if boxes_overlap(rect, ref_rect):
+            if polygons_overlap(rect_to_vertices(*rect), rect_to_vertices(*ref_rect)):
                 if rect[2]*rect[3] < ref_rect[2]*ref_rect[3]:
                     keep = False
                     break
         if keep:
-            can = Can.Can(self, rect, Can.CanColor.RED)
-            for i, old_can in enumerate(self.cans):
-                if np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)<self.maslab.can_proximity_tolerence:
-                    self.cans[i].update(rect)
-            self.cans.append(can)
-                
-            # # Check if object is within bounds
-            # lowest_point = get_lowest_point(rect)
-            # point_color = (255, 0, 0)
-            # in_bounds = True
-            # if longest_line is not None:
-            #     if lowest_point[1]<longest_line[0]+longest_line[1]*lowest_point[0]-self.maslab.boundry_padding:
-            #         in_bounds = False
-            #         point_color = (255, 0, 255)
-            # closest_point = get_lowest_point(closest)
-            # if lowest_point[1]>closest_point[1] and in_bounds:
-            #     closest = rect
             
-            # # Draw bounding box
-            # cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 255, 0), 2)
-
-            # # Draw lowest point
-            # cv2.circle(frame, lowest_point, 8, point_color, -1)
+            # Make sure a goal isn't mistaken for a can
+            for goal in (self.red_goal, self.green_goal, self.yellow_goal):
+                if goal is not None and goal.in_view:
+                    if polygons_overlap(rect_to_vertices(*rect), goal.quad):
+                        print("Canccled")
+                        return
+                    
+            can = Can.Can(self, rect, color)
+            replaced = False
+            best_dist = 2**31
+            best_index = -1
+            for i, old_can in enumerate(can_list):
+                dist = np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)
+                if dist<best_dist:
+                    best_dist = dist
+                    best_index = i
+            tolerence = self.maslab.can_proximity_tolerence
+            if self.maslab.robot.can_obligated:
+                tolerence *= 10
+            if best_dist<tolerence:
+                can_list[best_index].update(rect)
+                replaced = True
+            if not replaced:
+                if not self.maslab.robot.turn_factor>0:
+                    can_list.append(can)
     
-    
-    # # Direct motors to go to point (if enabled)
-    # if self.maslab.motor_action:
-    #     turn_factor, distance, stopped, self.maslab = motor_control.go_to(closest_point[0], closest_point[1], self.maslab)
-    #     # Show driving variables on video
-    #     cv2.putText(frame, f"Turn Factor: {turn_factor:.4f}", (760, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-    #     cv2.putText(frame, f"Distance: {distance}", (760, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    return can_list
+                
+def update_red_cans(self, hsv):
+    # Hue / Saturation / Brightness ranges
+    lower_red1 = np.array([0, 190, 80])
+    upper_red1 = np.array([15, 255, 255])
+
+    lower_red2 = np.array([165, 190, 80])
+    upper_red2 = np.array([180, 255, 255])
+
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask = mask1 | mask2
+
+    self.red_cans = update_cans(self, mask, self.red_cans, Can.CanColor.RED)
+
+def update_yellow_can(self, hsv):
+    # Hue / Saturation / Brightness ranges
+    lower_yellow = np.array([20, 190, 150])
+    upper_yellow = np.array([35, 255, 255])
+
+    mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
+
+    self.yellow_cans = update_cans(self, mask_yellow, self.yellow_cans, Can.CanColor.YELLOW)
+
+def update_green_cans(self, hsv):
+    # Hue / Saturation / Brightness ranges
+    lower_green = np.array([40, 90, 60])
+    upper_green = np.array([70, 255, 255])
+
+    mask_green = (cv2.inRange(hsv, lower_green, upper_green))
+
+    self.green_cans = update_cans(self, mask_green, self.green_cans, Can.CanColor.GREEN)
 
 
-    # if self.maslab.motor_action:
-    #     if stopped:
-    #         start_pos = raven.get_motor_encoder(self.maslab.CHANNEL_2)
-    #         while True:
-    #             position = raven.get_motor_encoder(self.maslab.CHANNEL_2)
-    #             diff = position - start_pos
-    #             if diff == 440*self.maslab.roll_from_stop:
-    #                 break
-    #         print("Arrived At Object")
-    #         break
-
-World.update_cans = update_cans
+World.update_cans = update_cans                
+World.update_red_cans = update_red_cans
+World.update_green_cans = update_green_cans
+World.update_yellow_can = update_yellow_can

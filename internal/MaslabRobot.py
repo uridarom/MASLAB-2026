@@ -10,24 +10,22 @@ class MaslabRobot:
         video_width = 1280, 
         video_height = 720, 
         # Minimum rectangular area for object to be flagged
-        area_min = 2000, 
+        area_min = 1000, 
         # How far from the ideal (1.50) aspect ratio may an object be
         ratio_tolerence = 0.2, 
         # Should robot drive to can
         motor_action = True, 
-        # Hue, Saturation, Brightness tolerences for color detection
-        color_tolerences = (10, 230, 80), 
 
         # Universal speed reference
-        speed = 25, 
+        speed = 20, 
         # How straight-on target must be before slowing down
         slowdown_tolerence = 0.01, 
         # How close target must be before slowing down
-        slowdown_trigger = 10, 
+        slowdown_trigger = 15, 
         # Offset to counter left-turning tendency
-        left_offset = 1.025, 
+        left_offset = 1.0, 
         # How many revolutions of the wheel robot should continue after reaching distance threshold
-        roll_from_stop = 8,
+        roll_from_stop = 3,
         # How much to increase image saturation
         saturation_factor = 3,
         # How far past a boundry can the robot target (in pixels)
@@ -38,13 +36,14 @@ class MaslabRobot:
         can_proximity_tolerence = 5,
         # How large the robot should be in the map (in pixels)
         robot_size = 40,
+        # How zoomed in the map should be 
+        map_scale = 2,
     ):
         self.video_width = video_width
         self.video_height = video_height
         self.area_min = area_min
         self.ratio_tolerence = ratio_tolerence
         self.motor_action = motor_action
-        self.color_tolerences = color_tolerences
         self.saturation_factor = saturation_factor
         self.boundry_padding = boundry_padding
         self.speed = speed
@@ -55,18 +54,23 @@ class MaslabRobot:
         self.idle_spinning = idle_spinning
         self.can_proximity_tolerence = can_proximity_tolerence
         self.robot_size = robot_size
+        self.map_scale = map_scale
 
         self.CHANNEL_1 = Raven.MotorChannel.CH1
         self.CHANNEL_2 = Raven.MotorChannel.CH2
         self.CHANNEL_3 = Raven.MotorChannel.CH3
-        self.WHEEL_DIAMETER = 9.844
+        self.WHEEL_DIAMETER = 9.8425
         self.WHEEL_WIDTH = 2.000
-        self.TRACK_WIDTH = 23.37
+        self.TRACK_WIDTH = 23.5
         self.CPR = 3200
+        self.wait_ticks = 0
 
-        self.ticks_lost = 0
+        self.status = "MAPPING"
 
         self.raven = Raven()
         self.world = World(self)
         self.robot = Robot(self)
+    
+    def print(text):
+        print("DEBUG: "+text)
         

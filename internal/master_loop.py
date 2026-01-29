@@ -2,6 +2,9 @@ from internal.MaslabRobot import MaslabRobot
 from internal import video
 import cv2
 import numpy as np
+import time
+from raven import Raven
+from world import Can
 
 # Global variables for mouse position
 mouse_x = -1
@@ -33,25 +36,78 @@ def generate_frame(maslab, cap):
         ######### WORLD CONSTRUCTION #########
 
         maslab.world.wheels.update()
-        maslab.world.update_cans(hsv)
+        maslab.time = time.time()
+        maslab.x, maslab.y, maslab.theta = maslab.world.wheels.get_pose_at_time(maslab.time)
+
         maslab.world.get_bounds(hsv)
+        maslab.world.get_green_goal(hsv, frame)
+        maslab.world.get_red_goal(hsv, frame)
+        maslab.world.get_yellow_goal(hsv, frame)
+        maslab.world.update_red_cans(hsv)
+        maslab.world.update_green_cans(hsv)
+        maslab.world.update_yellow_can(hsv)
 
         ########## ROBOT OPERATIONS ##########
 
-        if maslab.motor_action and len(maslab.world.cans)>0 and not maslab.robot.pursuing_can:
-            closest = maslab.world.cans[0]
-            for can in maslab.world.cans[1:]:
-                if can.lowest_point[1]<closest.lowest_point[1] and can.confirmed:
-                    closest = can
-            
-            maslab.robot.active_can = closest
-            maslab.robot.pursuing_can = True
+        cans_list = []
+        if maslab.world.red_goal is not None:
+            cans_list += maslab.world.red_cans
+        if maslab.world.green_goal is not None:
+            cans_list += maslab.world.green_cans
+        if maslab.world.yellow_goal is not None: 
+            cans_list += maslab.world.yellow_cans
 
-        if maslab.robot.pursuing_can:
-            if not maslab.robot.aligned:
-                maslab.robot.go_to_can(maslab.robot.active_can.coords[0], maslab.robot.active_can.coords[1])
+        if maslab.motor_action:
+            if maslab.robot.depositing:
+                if not maslab.robot.is_motor_going(maslab.CHANNEL_3):
+                    # Remove current can from list
+                    maslab.robot.aligned = False
+                    if maslab.robot.active_can.color == Can.CanColor.RED:
+                        print("Removed red can")
+                        maslab.world.red_cans.remove(maslab.robot.active_can)
+                    elif maslab.robot.active_can.color == Can.CanColor.GREEN:
+                        maslab.world.green_cans.remove(maslab.roobt.active_can)
+                    else:
+                        maslab.world.yellow_cans.remove(maslab.robot.active_can)
+    
+                    maslab.robot.pursuing_can = False
+                    maslab.robot.depositing = False
             else:
-                maslab.robot.take_can()
+                if maslab.robot.in_possession_of_can:
+                    if not maslab.robot.aligned:
+                        # If goal location is known, go to 
+                        goal = maslab.robot.active_can.get_goal()
+                        maslab.robot.go_to(*goal.nearest_point())
+                    else:
+                        # Once at goal, turn to face its center
+                        maslab.robot.rotating = True
+                        maslab.robot.go_to(*goal.get_centroid(), turn_only=True)
+                        if not maslab.robot.rotating:
+                            maslab.robot.deposit_can()
+
+                else:    
+                    if not maslab.robot.pursuing_can:
+                        # Select can 
+                        closest = None
+                        for can in cans_list:
+                            if closest is not None:
+                                if can.distance_from_robot()<closest.distance_from_robot() and can.confirmed:
+                                    closest = can
+                            elif can.confirmed:
+                                closest = can
+                        if closest is not None:
+                            print("Replaced can")
+                            maslab.robot.pursuing_can = True
+                            maslab.robot.active_can = closest
+                    elif not maslab.robot.aligned:
+                        # Go to can
+                        maslab.robot.can_obligated = True
+                        maslab.robot.go_to(*maslab.robot.active_can.coords)
+
+                    else:
+                        maslab.robot.take_can()
+                        maslab.robot.aligned = False
+                        maslab.robot.going_to_goal = True
 
         ########### VIDEO CREATION ###########
 
@@ -70,11 +126,12 @@ def begin_game_loop(self):
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_height)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG")) # Enable image compression
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Set to manual exposure mode
-    cap.set(cv2.CAP_PROP_EXPOSURE, -7)  # Set exposure time to 2^-7 = 1/128 second
-    cap.set(cv2.CAP_PROP_AUTO_WB, 0.0) # Disable auto white balance
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # Set to manual exposure mode
+    cap.set(cv2.CAP_PROP_EXPOSURE, 250)  # Set exposure time to 5ms
+    cap.set(cv2.CAP_PROP_AUTO_WB, 0) # Disable auto white balance
     cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 3500) # Set white balance temperature to 4200K
     cap.set(cv2.CAP_PROP_FPS, 30) # Set frames per second
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     if not cap.isOpened():
         raise RuntimeError("Could not open webcam")

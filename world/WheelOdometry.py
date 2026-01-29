@@ -1,4 +1,6 @@
 import numpy as np
+import time
+from collections import deque
 from raven import Raven
 
 class WheelOdometry:
@@ -10,16 +12,24 @@ class WheelOdometry:
         cpr: int,
         left_encoder_init: int = 0,
         right_encoder_init: int = 0,
+        buffer_size: int = 200,
     ):
         self.reset()
+
         # Robot properties
         self.__WHEEL_DIAMETER = wheel_diameter
         self.__TRACK_WIDTH = track_width
         self.__CPR = cpr
-        self.__WHEEL_MOTOR_MPC = self.__WHEEL_DIAMETER * np.pi / cpr  # Distance per count
+        self.__WHEEL_MOTOR_MPC = self.__WHEEL_DIAMETER * np.pi / cpr
         self.__left_encoder = left_encoder_init
         self.__right_encoder = right_encoder_init
         self.maslab = maslab
+
+        # Pose history buffer: (timestamp, x, y, theta)
+        self.pose_buffer = deque(maxlen=buffer_size)
+
+        # Store initial pose
+        self._push_pose()
 
     def reset(self):
         self.__x = 0.0
@@ -27,103 +37,117 @@ class WheelOdometry:
         self.__theta = 0.0
 
     @property
-    def x(self) -> float:
+    def x(self):
         return self.__x
 
     @property
-    def y(self) -> float:
+    def y(self):
         return self.__y
 
     @property
-    def theta(self) -> float:
+    def theta(self):
         return self.__theta
 
     def __repr__(self):
         return f"x: {self.x}\ny: {self.y}\nheading: {self.theta * 180/np.pi} degree"
 
+    # ---------------- BUFFER UTILS ---------------- #
+
+    def _push_pose(self):
+        """Save current pose with timestamp"""
+        t = time.time()
+        self.pose_buffer.append((t, self.__x, self.__y, self.__theta))
+
+    def get_pose_at_time(self, t_query):
+        """
+        Returns interpolated (x, y, theta) at time t_query.
+        If outside buffer, returns closest pose.
+        """
+        if not self.pose_buffer:
+            return self.__x, self.__y, self.__theta
+
+        # If too early or too late, clamp
+        if t_query <= self.pose_buffer[0][0]:
+            _, x, y, th = self.pose_buffer[0]
+            return x, y, th
+        if t_query >= self.pose_buffer[-1][0]:
+            _, x, y, th = self.pose_buffer[-1]
+            return x, y, th
+
+        # Find surrounding poses
+        for i in range(len(self.pose_buffer) - 1):
+            t0, x0, y0, th0 = self.pose_buffer[i]
+            t1, x1, y1, th1 = self.pose_buffer[i + 1]
+
+            if t0 <= t_query <= t1:
+                alpha = (t_query - t0) / (t1 - t0)
+
+                x = x0 + alpha * (x1 - x0)
+                y = y0 + alpha * (y1 - y0)
+
+                # angle interpolation (wrap-safe)
+                dth = (th1 - th0 + np.pi) % (2*np.pi) - np.pi
+                th = th0 + alpha * dth
+
+                return x, y, th
+
+        # fallback (should not happen)
+        _, x, y, th = self.pose_buffer[-1]
+        return x, y, th
+
+    # ---------------- ENCODER TARGET HELPERS ---------------- #
+
     def get_theta_encoders(self, theta):
         meters_per_count = self.__WHEEL_DIAMETER * np.pi / self.__CPR
-
-        # Distance each wheel must travel
         d_left = -theta * self.__TRACK_WIDTH / 2
         d_right = theta * self.__TRACK_WIDTH / 2
-
-        # Convert to encoder counts
-        d_left_counts = int(round(d_left / meters_per_count))
-        d_right_counts = int(round(d_right / meters_per_count))
-
-        # Target encoder values
-        target_left = d_left_counts
-        target_right = d_right_counts
-
-        return target_right, target_left
-
+        return (
+            int(round(d_right / meters_per_count)),
+            int(round(d_left / meters_per_count)),
+        )
 
     def get_xy_encoders(self, target_x, target_y):
-
         right_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH1)
         left_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH2)
-
         meters_per_count = self.__WHEEL_DIAMETER * np.pi / self.__CPR
 
-        # --- Step 1: vector to target ---
         dx = target_x - self.x
         dy = target_y - self.y
         distance = np.hypot(dx, dy)
 
-        # --- Step 2: required heading ---
         target_theta = np.arctan2(dy, dx)
         d_theta = (target_theta - self.__theta + np.pi) % (2*np.pi) - np.pi
 
-        # --- Step 3: encoder deltas for turn ---
-        d_left_turn = -d_theta * self.__TRACK_WIDTH / 2
-        d_right_turn = d_theta * self.__TRACK_WIDTH / 2
+        d_left = -d_theta * self.__TRACK_WIDTH / 2 + distance
+        d_right = d_theta * self.__TRACK_WIDTH / 2 + distance
 
-        # --- Step 4: encoder deltas for straight drive ---
-        d_left_drive = distance
-        d_right_drive = distance
+        return (
+            left_encoder + int(round(d_left / meters_per_count)),
+            right_encoder + int(round(d_right / meters_per_count)),
+        )
 
-        # --- Step 5: total wheel distances ---
-        d_left_total = d_left_turn + d_left_drive
-        d_right_total = d_right_turn + d_right_drive
-
-        # --- Step 6: convert to counts ---
-        left_counts = int(round(d_left_total / meters_per_count))
-        right_counts = int(round(d_right_total / meters_per_count))
-
-        # --- Step 7: absolute encoder targets ---
-        target_left = left_encoder + left_counts
-        target_right = right_encoder + right_counts
-
-        return target_left, target_right
-
+    # ---------------- ODOMETRY UPDATE ---------------- #
 
     def update(self):
         left_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH1)
         right_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH2)
-        # Get encoder change
-        d_left_encoder = left_encoder - self.__left_encoder
-        d_right_encoder = right_encoder - self.__right_encoder
 
-        # Update encoder values
+        d_left_enc = left_encoder - self.__left_encoder
+        d_right_enc = right_encoder - self.__right_encoder
+
         self.__left_encoder = left_encoder
         self.__right_encoder = right_encoder
 
-        # Get distance change
-        d_left_distance = d_left_encoder * self.__WHEEL_MOTOR_MPC
-        d_right_distance = -d_right_encoder * self.__WHEEL_MOTOR_MPC
+        d_left = d_left_enc * self.__WHEEL_MOTOR_MPC
+        d_right = -d_right_enc * self.__WHEEL_MOTOR_MPC
 
-        ###### TODO: Calculate changes ###### 
-        d_theta = (d_right_distance - d_left_distance) / self.__TRACK_WIDTH
-        d_center = (d_left_distance + d_right_distance) / 2.0
+        d_theta = (d_right - d_left) / self.__TRACK_WIDTH
+        d_center = (d_left + d_right) / 2.0
         theta_mid = self.__theta + d_theta / 2.0
-        d_x = d_center * np.sin(theta_mid)
-        d_y = d_center * np.cos(theta_mid)
-        ###### End of TODO ######
 
-        # Update reading
-        self.__theta = (self.__theta + d_theta + np.pi) % (
-            2 * np.pi
-        ) - np.pi  # Wrapping to 2*pi
-        self.__x += d_x
-        self.__y += d_y
+        self.__x += d_center * np.sin(theta_mid)
+        self.__y += d_center * np.cos(theta_mid)
+        self.__theta = (self.__theta + d_theta + np.pi) % (2*np.pi) - np.pi
+
+        # store pose
+        self._push_pose()

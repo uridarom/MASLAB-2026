@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 from world.World import World
+from world.Goal import Goal
 
 def get_length(line):
     return np.sqrt((line[3]-line[1])^2 + (line[2]-line[0])^2)
@@ -39,6 +40,8 @@ def get_bounds(self, hsv):
             length = get_length(line[0])
             if length>get_length(longest_line):
                 longest_line = line[0]
+    
+    self.bounds.update(*longest_line)
 
     intercept_form = None
     # Extrapolate line to edges of FOV
@@ -58,34 +61,16 @@ def get_bounds(self, hsv):
 
     self.border = (intercept_form, longest_line)
 
-    lower_red1 = np.array([0, 150, 220])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 150, 220])
-    upper_red2 = np.array([180, 255, 255])
     
-def get_goal(self, hsv, frame):
-
-    # Get mask
-    lower_red1 = np.array([0, 150, 220])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 150, 220])
-    upper_red2 = np.array([180, 255, 255])
-
-    mask_red = (
-        cv2.inRange(hsv, lower_red1, upper_red1) |
-        cv2.inRange(hsv, lower_red2, upper_red2)
-    )
-
-    # Clean up
+def get_goal(self, hsv, frame, mask):
+    # Clean up mask
     kernel = np.ones((5, 5), np.uint8)
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
     # Get contours
     contours, _ = cv2.findContours(
-        mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
 
     for cnt in contours:
@@ -104,31 +89,78 @@ def get_goal(self, hsv, frame):
         if len(approx) != 4:
             continue
 
-        ########### Check if inside is dark ###########
-        mask_shape = np.zeros(mask_red.shape, dtype=np.uint8)
-        cv2.drawContours(mask_shape, [approx], -1, 255, -1)
-
-        # Erode to avoid border
-        inner_mask = cv2.erode(mask_shape, np.ones((10, 10), np.uint8))
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        inside_pixels = gray[inner_mask > 0]
-
-        # Confirm pixel values
-        if np.mean(inside_pixels) > 150:
-            continue
-
-        ########### Check if outside is dark ###########
-        dilated = cv2.dilate(mask_shape, np.ones((15, 15), np.uint8))
-        outer_ring = dilated - mask_shape
-        outside_pixels = gray[outer_ring > 0]
-
-        # Confirm pixel values
-        if np.mean(outside_pixels) > 150:
-            continue
-
         return approx.reshape(4, 2)
 
     return None
 
+def get_red_goal(self, hsv, frame):
+    # Get mask
+    lower_red1 = np.array([0, 150, 160])
+    upper_red1 = np.array([10, 255, 255])
+
+    lower_red2 = np.array([170, 150, 160])
+    upper_red2 = np.array([180, 255, 255])
+
+    mask_red = (
+        cv2.inRange(hsv, lower_red1, upper_red1) |
+        cv2.inRange(hsv, lower_red2, upper_red2)
+    )
+
+    # Get goal
+    goal = get_goal(self, hsv, frame, mask_red)
+    if self.red_goal is not None:
+        if goal is not None:
+            self.red_goal.update(goal)
+        else:
+            self.red_goal.in_view = False
+    elif goal is not None:
+        self.red_goal = Goal(self, goal, min_area=700, max_area = 2000)
+        check = self.red_goal.update(goal)
+        if not check:
+            self.red_goal = None
+    
+def get_green_goal(self, hsv, frame):
+    # Get mask
+    lower_green = np.array([30, 60, 140])
+    upper_green = np.array([60, 255, 255])
+
+    mask_green = (cv2.inRange(hsv, lower_green, upper_green))
+
+    # Get goal
+    goal = get_goal(self, hsv, frame, mask_green)
+    if self.green_goal is not None:
+        if goal is not None:
+            self.green_goal.update(goal)
+        else:
+            self.green_goal.in_view = False
+    elif goal is not None:
+        self.green_goal = Goal(self, goal, min_area=700, max_area = 2000)
+        check = self.green_goal.update(goal)
+        if not check:
+            self.green_goal = None
+    
+def get_yellow_goal(self, hsv, frame):
+    # Get mask
+    lower_yellow = np.array([20, 130, 150])
+    upper_yellow = np.array([30, 255, 255])
+
+    mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
+
+    # Get goal
+    goal = get_goal(self, hsv, frame, mask_yellow)
+    if self.yellow_goal is not None:
+        if goal is not None:
+            self.yellow_goal.update(goal)
+        else:
+            self.yellow_goal.in_view = False
+    elif goal is not None:
+        self.yellow_goal = Goal(self, goal, min_area=20, max_area=500)
+        check = self.yellow_goal.update(goal)
+        if not check:
+            self.yellow_goal = None
+    
 World.get_bounds = get_bounds
 World.get_goal = get_goal
+World.get_red_goal = get_red_goal
+World.get_green_goal = get_green_goal
+World.get_yellow_goal = get_yellow_goal

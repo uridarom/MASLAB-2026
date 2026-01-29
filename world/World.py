@@ -1,4 +1,6 @@
 from world.WheelOdometry import WheelOdometry
+from world.Bounds import Bounds
+import numpy as np
 
 class World:
 
@@ -11,4 +13,12 @@ class World:
             cpr = maslab.CPR)
         
         self.cans = []
+        self.red_cans = []
+        self.yellow_cans = []
+        self.green_cans = []
         self.border = ((0, 0), (0, 0, 0, 0))
+        self.bounds = Bounds(self)
+
+        self.red_goal = None
+        self.green_goal = None
+        self.yellow_goal = None
