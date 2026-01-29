@@ -60,9 +60,10 @@ def generate_frame(maslab, cap):
         ########## ROBOT OPERATIONS ##########
 
         # Last resort: sabatoge
-        if maslab.ticks_lost>1000:
-            maslab.speed = 100
-            maslab.robot.go_to(-50, 450)
+        if maslab.ticks_lost>1:
+            # maslab.speed = 75
+            # maslab.robot.go_to(-50, 450)
+            pass
         else:
             cans_list = []
             if maslab.world.red_goal is not None:
@@ -73,7 +74,7 @@ def generate_frame(maslab, cap):
                 cans_list.append(maslab.world.yellow_cans)
 
             if maslab.robot.depositing:
-                if not maslab.robot.is_motor_going(maslab.CHANNEL_3):
+                if not maslab.robot.is_motor_going(maslab.CHANNEL_3) or maslab.robot.active_can.color == Can.CanColor.YELLOW:
                     # Remove current can from list
                     maslab.robot.aligned = False
                     remove_active_can(maslab)
@@ -165,7 +166,9 @@ def generate_frame(maslab, cap):
                         maslab.robot.active_cans.append(maslab.robot.active_can)
                         maslab.robot.take_can()
                         maslab.robot.aligned = False
-                        if len(maslab.robot.active_cans)>1:
+                        if maslab.robot.active_can.color == Can.CanColor.YELLOW:
+                            maslab.world.taken_yellow = True
+                        if len(maslab.robot.active_cans)>1 or maslab.robot.active_can.color == Can.CanColor.YELLOW:
                             maslab.robot.going_to_goal = True
                             maslab.robot.in_possession_of_can = True
                         else:
@@ -174,8 +177,6 @@ def generate_frame(maslab, cap):
                             maslab.robot.in_possession_of_can = False
                             maslab.robot.pursuing_can = False
         
-        print(maslab.robot.in_possession_of_can)
-
         ########### VIDEO CREATION ###########
 
         frame = video.create_video_frame(frame, maslab, (mouse_x, mouse_y))

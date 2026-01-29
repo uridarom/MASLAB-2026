@@ -95,10 +95,10 @@ def get_goal(self, hsv, frame, mask):
 
 def get_red_goal(self, hsv, frame):
     # Get mask
-    lower_red1 = np.array([0, 150, 160])
-    upper_red1 = np.array([10, 255, 255])
+    lower_red1 = np.array([0, 110, 40])
+    upper_red1 = np.array([15, 255, 255])
 
-    lower_red2 = np.array([170, 150, 160])
+    lower_red2 = np.array([165, 110, 40])
     upper_red2 = np.array([180, 255, 255])
 
     mask_red = (
@@ -114,7 +114,7 @@ def get_red_goal(self, hsv, frame):
         else:
             self.red_goal.in_view = False
     elif goal is not None:
-        self.red_goal = Goal(self, goal, min_area=700, max_area = 2000)
+        self.red_goal = Goal(self, goal, min_area=700, max_area = 5000)
         check = self.red_goal.update(goal)
         if not check:
             self.red_goal = None
@@ -134,7 +134,7 @@ def get_green_goal(self, hsv, frame):
         else:
             self.green_goal.in_view = False
     elif goal is not None:
-        self.green_goal = Goal(self, goal, min_area=700, max_area = 2000)
+        self.green_goal = Goal(self, goal, min_area=700, max_area = 5000)
         check = self.green_goal.update(goal)
         if not check:
             self.green_goal = None

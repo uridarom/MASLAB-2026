@@ -22,3 +22,4 @@ class World:
         self.red_goal = None
         self.green_goal = None
         self.yellow_goal = None
+        self.taken_yellow = False

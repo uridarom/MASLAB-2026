@@ -17,6 +17,7 @@ class Can:
         self.replaced = 0
         self.confirmed = False
         self.world = world
+        self.ticks_lost = 0
 
         self.coords = tuple(self.world.transform_uv_to_xy(*self.lowest_point))
         self.relative_coords = tuple(self.world.transform_uv_to_xy_relative(*self.lowest_point))

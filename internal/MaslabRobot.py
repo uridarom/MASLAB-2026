@@ -33,7 +33,7 @@ class MaslabRobot:
         # Should the robot spin in circles if no can is found
         idle_spinning = False,
         # How close a newly detected can has to be to a previously logged one to assume its the same can (in cm)
-        can_proximity_tolerence = 5,
+        can_proximity_tolerence = 7,
         # How large the robot should be in the map (in pixels)
         robot_size = 40,
         # How zoomed in the map should be 

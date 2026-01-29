@@ -98,14 +98,19 @@ def update_cans(self, mask, can_list, color):
             replaced = False
             best_dist = 2**31
             best_index = -1
-            for i, old_can in enumerate(can_list):
-                dist = np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)
-                if dist<best_dist:
-                    best_dist = dist
-                    best_index = i
             tolerence = self.maslab.can_proximity_tolerence
             if self.maslab.robot.can_obligated:
                 tolerence *= 10
+            for i, old_can in enumerate(can_list):
+                dist = np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)
+                if dist<best_dist and dist<tolerence:
+                    old_can.ticks_lost = 0
+                    best_dist = dist
+                    best_index = i
+                elif old_can.ticks_lost<1000:
+                    old_can.ticks_lost += 1
+                else:
+                    old_can.confirmed = False
             if best_dist<tolerence:
                 can_list[best_index].update(rect)
                 replaced = True
@@ -117,10 +122,10 @@ def update_cans(self, mask, can_list, color):
                 
 def update_red_cans(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_red1 = np.array([0, 190, 50])
+    lower_red1 = np.array([0, 160, 40])
     upper_red1 = np.array([15, 255, 255])
 
-    lower_red2 = np.array([165, 190, 50])
+    lower_red2 = np.array([165, 160, 40])
     upper_red2 = np.array([180, 255, 255])
 
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -131,16 +136,17 @@ def update_red_cans(self, hsv):
 
 def update_yellow_can(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_yellow = np.array([20, 240, 90])
-    upper_yellow = np.array([35, 255, 255])
+    if not self.taken_yellow:
+        lower_yellow = np.array([20, 200, 70])
+        upper_yellow = np.array([35, 255, 255])
 
-    mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
+        mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
 
-    self.yellow_cans = update_cans(self, mask_yellow, self.yellow_cans, Can.CanColor.YELLOW)
+        self.yellow_cans = update_cans(self, mask_yellow, self.yellow_cans, Can.CanColor.YELLOW)
 
 def update_green_cans(self, hsv):
     # Hue / Saturation / Brightness ranges
-    lower_green = np.array([40, 90, 50])
+    lower_green = np.array([40, 140, 50])
     upper_green = np.array([70, 255, 255])
 
     mask_green = (cv2.inRange(hsv, lower_green, upper_green))
