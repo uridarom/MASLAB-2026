@@ -19,7 +19,6 @@ class WheelOdometry:
         # Robot properties
         self.__WHEEL_DIAMETER = wheel_diameter
         self.__TRACK_WIDTH = track_width
-        self.__CPR = cpr
         self.__WHEEL_MOTOR_MPC = self.__WHEEL_DIAMETER * np.pi / cpr
         self.__left_encoder = left_encoder_init
         self.__right_encoder = right_encoder_init
@@ -51,17 +50,19 @@ class WheelOdometry:
     def __repr__(self):
         return f"x: {self.x}\ny: {self.y}\nheading: {self.theta * 180/np.pi} degree"
 
-    # ---------------- BUFFER UTILS ---------------- #
-
     def _push_pose(self):
-        """Save current pose with timestamp"""
+        """
+        Save current pose with timestamp
+        """
         t = time.time()
         self.pose_buffer.append((t, self.__x, self.__y, self.__theta))
 
-    def get_pose_at_time(self, t_query):
+    def get_pose_at_time(self, t_query: float) -> tuple:
         """
         Returns interpolated (x, y, theta) at time t_query.
         If outside buffer, returns closest pose.
+
+        :param t_query: target time
         """
         if not self.pose_buffer:
             return self.__x, self.__y, self.__theta
@@ -95,40 +96,10 @@ class WheelOdometry:
         _, x, y, th = self.pose_buffer[-1]
         return x, y, th
 
-    # ---------------- ENCODER TARGET HELPERS ---------------- #
-
-    def get_theta_encoders(self, theta):
-        meters_per_count = self.__WHEEL_DIAMETER * np.pi / self.__CPR
-        d_left = -theta * self.__TRACK_WIDTH / 2
-        d_right = theta * self.__TRACK_WIDTH / 2
-        return (
-            int(round(d_right / meters_per_count)),
-            int(round(d_left / meters_per_count)),
-        )
-
-    def get_xy_encoders(self, target_x, target_y):
-        right_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH1)
-        left_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH2)
-        meters_per_count = self.__WHEEL_DIAMETER * np.pi / self.__CPR
-
-        dx = target_x - self.x
-        dy = target_y - self.y
-        distance = np.hypot(dx, dy)
-
-        target_theta = np.arctan2(dy, dx)
-        d_theta = (target_theta - self.__theta + np.pi) % (2*np.pi) - np.pi
-
-        d_left = -d_theta * self.__TRACK_WIDTH / 2 + distance
-        d_right = d_theta * self.__TRACK_WIDTH / 2 + distance
-
-        return (
-            left_encoder + int(round(d_left / meters_per_count)),
-            right_encoder + int(round(d_right / meters_per_count)),
-        )
-
-    # ---------------- ODOMETRY UPDATE ---------------- #
-
     def update(self):
+        """
+        Updates odometry information with latest motor encoder data.
+        """
         left_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH1)
         right_encoder = self.maslab.raven.get_motor_encoder(Raven.MotorChannel.CH2)
 

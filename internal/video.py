@@ -2,14 +2,20 @@ import cv2
 import numpy as np
 from world import Can
 
-# Expand a rotated rectangle by n_pixels amount
+# 
 def expand_pts(pts, n_pixels):
+    """
+    Expand a rotated rectangle by n_pixels amount.
+    
+    :param pts: matrix with rectangle vertices
+    :param n_pixels: pixels to expand rectangle by
+    """
     center = np.mean(pts, axis=0)
     expanded_pts = []
     for pt in pts:
         # Vector from center to point
         vec = pt - center
-        # Normalize and scale
+        # Normalize & scale
         dist = np.linalg.norm(vec)
         if dist == 0: continue
         new_pt = center + vec * (1 + n_pixels / dist)
@@ -17,6 +23,9 @@ def expand_pts(pts, n_pixels):
     return np.array(expanded_pts, np.int32)
 
 def create_video_frame(frame, maslab, mouse):
+    """
+    Take in camera frame; draw map and label video output.
+    """
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -58,7 +67,7 @@ def create_video_frame(frame, maslab, mouse):
         text = f"H:{h} S:{s} V:{v}"
         cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
-    ########### Status #############
+    ########## Status ###########
     cv2.putText(frame, maslab.status, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     cv2.putText(frame, f"Ticks Lost: {maslab.ticks_lost}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
@@ -72,7 +81,7 @@ def create_video_frame(frame, maslab, mouse):
 
     ''' ============== Map ============== '''
 
-    # Create
+    # Create map
     game_map = np.ones((map_size, map_size, 3), dtype=np.uint8) * 255
     diff = (map_size-boundry_size)//2
     def to_map_coords_robot(coords):
@@ -97,7 +106,7 @@ def create_video_frame(frame, maslab, mouse):
         y = int(round(y))
         cv2.line(game_map, (diff, y), (boundry_size+diff, y), color=(100, 100, 100), thickness=1)
 
-    ########### Map Border ###########
+    ######## Map Border ########
 
     cv2.rectangle(
         game_map,
@@ -107,7 +116,7 @@ def create_video_frame(frame, maslab, mouse):
         2
     ) 
 
-    ########### Bounds ###########
+    ######### Bounds #########
 
     for bound_line in maslab.world.bounds.lines:
         if bound_line.confirmed:
@@ -116,7 +125,7 @@ def create_video_frame(frame, maslab, mouse):
             ext_2 = np.array(bound_line.p2) + bound_line.unit*1000
             cv2.line(game_map, to_map_coords_homography(ext_1.astype(int).tolist()), to_map_coords_homography(ext_2.astype(int).tolist()), (255, 0, 0), 3)
 
-    ########### Goals ###########
+    ######### Goals #########
 
     # Draw goals
     goal_colors = ((0, 0, 255), (0, 255, 0), (0, 255, 255))
@@ -138,7 +147,7 @@ def create_video_frame(frame, maslab, mouse):
         
     ########### Robot ###########
 
-    # Create rotated triangle to represent robot
+    # Create rotated triangle for robot
     w = maslab.robot_size
     h = maslab.robot_size * 1.2
 

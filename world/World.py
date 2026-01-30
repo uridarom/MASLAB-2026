@@ -3,7 +3,9 @@ from world.Bounds import Bounds
 import numpy as np
 
 class World:
-
+    """
+    World object that contains environment info and related methods
+    """
     def __init__(self, maslab):
         self.maslab = maslab
         self.wheels = WheelOdometry(

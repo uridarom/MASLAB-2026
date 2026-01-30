@@ -8,6 +8,11 @@ def get_length(line):
     return np.sqrt((line[3]-line[1])^2 + (line[2]-line[0])^2)
 
 def get_bounds(self, hsv):
+    """
+    Given an image from the camera, detect any boundry lines.
+    
+    :param hsv: Image in HSV format
+    """
     # Blue color range
     lower_blue = np.array([90, 170, 100])
     upper_blue = np.array([120, 255, 255])
@@ -62,7 +67,12 @@ def get_bounds(self, hsv):
     self.border = (intercept_form, longest_line)
 
     
-def get_goal(self, hsv, frame, mask):
+def get_goal(self, mask) -> list:
+    """
+    Given a color mask, detect any goals.
+    
+    :param mask: Color range mask of target color.
+    """
     # Clean up mask
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -93,8 +103,13 @@ def get_goal(self, hsv, frame, mask):
 
     return None
 
-def get_red_goal(self, hsv, frame):
-    # Get mask
+def get_red_goal(self, hsv):
+    """
+    Takes in image and updates world with latest 
+    red goal if it is found in the image.
+    
+    :param hsv: Image in HSV format
+    """
     lower_red1 = np.array([0, 110, 40])
     upper_red1 = np.array([15, 255, 255])
 
@@ -107,7 +122,7 @@ def get_red_goal(self, hsv, frame):
     )
 
     # Get goal
-    goal = get_goal(self, hsv, frame, mask_red)
+    goal = get_goal(self, mask_red)
     if self.red_goal is not None:
         if goal is not None:
             self.red_goal.update(goal)
@@ -119,7 +134,13 @@ def get_red_goal(self, hsv, frame):
         if not check:
             self.red_goal = None
     
-def get_green_goal(self, hsv, frame):
+def get_green_goal(self, hsv):
+    """
+    Takes in image and updates world with latest 
+    green goal if it is found in the image.
+    
+    :param hsv: Image in HSV format
+    """
     # Get mask
     lower_green = np.array([40, 120, 50])
     upper_green = np.array([60, 255, 255])
@@ -127,7 +148,7 @@ def get_green_goal(self, hsv, frame):
     mask_green = (cv2.inRange(hsv, lower_green, upper_green))
 
     # Get goal
-    goal = get_goal(self, hsv, frame, mask_green)
+    goal = get_goal(self, mask_green)
     if self.green_goal is not None:
         if goal is not None:
             self.green_goal.update(goal)
@@ -139,7 +160,13 @@ def get_green_goal(self, hsv, frame):
         if not check:
             self.green_goal = None
     
-def get_yellow_goal(self, hsv, frame):
+def get_yellow_goal(self, hsv):
+    """
+    Takes in image and updates world with latest 
+    yellow goal if it is found in the image.
+    
+    :param hsv: Image in HSV format
+    """
     # Get mask
     lower_yellow = np.array([20, 130, 150])
     upper_yellow = np.array([30, 255, 255])
@@ -147,7 +174,7 @@ def get_yellow_goal(self, hsv, frame):
     mask_yellow = (cv2.inRange(hsv, lower_yellow, upper_yellow))
 
     # Get goal
-    goal = get_goal(self, hsv, frame, mask_yellow)
+    goal = get_goal(self, mask_yellow)
     if self.yellow_goal is not None:
         if goal is not None:
             self.yellow_goal.update(goal)

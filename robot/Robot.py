@@ -1,7 +1,7 @@
-from raven import Raven
-
 class Robot:
-
+    """
+    Robot object that contains information and methods about motor operations
+    """
     def __init__(self, maslab):
         self.maslab = maslab
         self.aligned = False

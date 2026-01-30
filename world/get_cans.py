@@ -3,7 +3,19 @@ import numpy as np
 from world import Can
 from world.World import World
 
-def rect_to_vertices(x, y, w, h):
+def rect_to_vertices(x: int, y: int, w: int, h: int) -> float:
+    """
+    Converts a rectangle of x, y, w, h format 
+    to a rectangle in vertex format.
+    
+    :param x: X position of top-left corner of rectangle
+    :param y: Y position of top-left corner of rectangle
+    :param w: Width of rectangle
+    :param h: Height of rectangle
+
+    Returns:
+    - Rectangle in ((x1, y1), (x2, y2), (x3, y3), (x4, y4)) format
+    """
     return np.array([
         [x,     y],
         [x+w,   y],
@@ -11,25 +23,35 @@ def rect_to_vertices(x, y, w, h):
         [x,     y+h]
     ])
 
-def project(poly, axis):
-    dots = [np.dot(p, axis) for p in poly]
-    return min(dots), max(dots)
+def polygons_overlap(poly1: list | tuple, poly2: list | tuple) -> bool:
+    """
+    Checks if two polygons of vertex format overlap.
+    
+    :param poly1: first polygon in ((x1, y1), (x2, y2), (x3, y3), (x4, y4)) format
+    :param poly2: second polygon in ((x1, y1), (x2, y2), (x3, y3), (x4, y4)) format
 
-def overlap_1d(a, b):
-    return not (a[1] < b[0] or b[1] < a[0])
+    Returns:
+    - True if overlap, False otherwise
+    """
 
-def axes(poly):
-    axes = []
-    for i in range(len(poly)):
-        p1 = poly[i]
-        p2 = poly[(i+1) % len(poly)]
-        edge = p2 - p1
-        normal = np.array([-edge[1], edge[0]])
-        normal = normal / np.linalg.norm(normal)
-        axes.append(normal)
-    return axes
+    def project(poly, axis):
+        dots = [np.dot(p, axis) for p in poly]
+        return min(dots), max(dots)
 
-def polygons_overlap(poly1, poly2):
+    def overlap_1d(a, b):
+        return not (a[1] < b[0] or b[1] < a[0])
+
+    def axes(poly):
+        axes = []
+        for i in range(len(poly)):
+            p1 = poly[i]
+            p2 = poly[(i+1) % len(poly)]
+            edge = p2 - p1
+            normal = np.array([-edge[1], edge[0]])
+            normal = normal / np.linalg.norm(normal)
+            axes.append(normal)
+        return axes
+    
     for axis in axes(poly1) + axes(poly2):
         p1 = project(poly1, axis)
         p2 = project(poly2, axis)
@@ -37,8 +59,18 @@ def polygons_overlap(poly1, poly2):
             return False
     return True
 
-# Creates video output and commands motors
-def update_cans(self, mask, can_list, color):
+def update_cans(self, mask, can_list, color) -> list:
+    """
+    Given a color range mask, find any cans, create a new can
+    or update an existing can, and update the global can list.
+    
+    :param mask: Color range mask
+    :param can_list: The appropriate can list to be updated
+    :param color: The color of the can
+
+    Returns:
+    - Updated list of cans
+    """
     # Clean mask
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
@@ -86,7 +118,6 @@ def update_cans(self, mask, can_list, color):
                     keep = False
                     break
         if keep:
-            
             # Make sure a goal isn't mistaken for a can
             for goal in (self.red_goal, self.green_goal, self.yellow_goal):
                 if goal is not None and goal.in_view:
@@ -99,14 +130,17 @@ def update_cans(self, mask, can_list, color):
             best_dist = 2**31
             best_index = -1
             tolerence = self.maslab.can_proximity_tolerence
+            # Much higher tolerence if actively driving towards a can
             if self.maslab.robot.can_obligated:
                 tolerence *= 10
+            # Look through all existing cans to see if one should be updated or a new one created
             for i, old_can in enumerate(can_list):
                 dist = np.sqrt((can.coords[0]-old_can.coords[0])**2 + (can.coords[1]-old_can.coords[1])**2)
                 if dist<best_dist and dist<tolerence:
                     old_can.ticks_lost = 0
                     best_dist = dist
                     best_index = i
+                # Remove a can if it hasn't been seen for ~1.5 minutes
                 elif old_can.ticks_lost<1000:
                     old_can.ticks_lost += 1
                 else:
@@ -117,10 +151,14 @@ def update_cans(self, mask, can_list, color):
             if not replaced:
                 if self.maslab.robot.turn_factor<0.5:
                     can_list.append(can)
-    
     return can_list
                 
 def update_red_cans(self, hsv):
+    """
+    Given an image, update the environment with new red cans.
+    
+    :param hsv: Image in HSV format.
+    """
     # Hue / Saturation / Brightness ranges
     lower_red1 = np.array([0, 160, 40])
     upper_red1 = np.array([15, 255, 255])
@@ -135,6 +173,11 @@ def update_red_cans(self, hsv):
     self.red_cans = update_cans(self, mask, self.red_cans, Can.CanColor.RED)
 
 def update_yellow_can(self, hsv):
+    """
+    Given an image, update the environment with new yellow cans.
+    
+    :param hsv: Image in HSV format.
+    """
     # Hue / Saturation / Brightness ranges
     if not self.taken_yellow:
         lower_yellow = np.array([20, 200, 70])
@@ -145,6 +188,11 @@ def update_yellow_can(self, hsv):
         self.yellow_cans = update_cans(self, mask_yellow, self.yellow_cans, Can.CanColor.YELLOW)
 
 def update_green_cans(self, hsv):
+    """
+    Given an image, update the environment with new green cans.
+    
+    :param hsv: Image in HSV format.
+    """
     # Hue / Saturation / Brightness ranges
     lower_green = np.array([40, 140, 50])
     upper_green = np.array([70, 255, 255])

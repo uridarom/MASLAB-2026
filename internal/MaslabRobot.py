@@ -56,6 +56,7 @@ class MaslabRobot:
         self.robot_size = robot_size
         self.map_scale = map_scale
 
+        # Constants
         self.CHANNEL_1 = Raven.MotorChannel.CH1
         self.CHANNEL_2 = Raven.MotorChannel.CH2
         self.CHANNEL_3 = Raven.MotorChannel.CH3
@@ -63,11 +64,13 @@ class MaslabRobot:
         self.WHEEL_WIDTH = 2.000
         self.TRACK_WIDTH = 23.5
         self.CPR = 3200
+
+        # Time-variant variables
         self.wait_ticks = 0
         self.ticks_lost = 0
-
         self.status = "MAPPING"
 
+        # Utility objects
         self.raven = Raven()
         self.world = World(self)
         self.robot = Robot(self)

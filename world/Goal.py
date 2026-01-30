@@ -1,6 +1,9 @@
 import numpy as np
 
 class Goal:
+    """
+    Goal object that represents an individual goal in real-world space.
+    """
     def __init__(self, world, quad, min_area, max_area):
         self.quad = quad
         self.in_view = False
@@ -15,7 +18,16 @@ class Goal:
 
         self.coords = coords
     
-    def update(self, quad):
+    def update(self, quad: list | tuple) -> bool:
+        """
+        Attempts to update goal with a new quadrilateral.
+        
+        :param self: Description
+        :param quad: Description
+
+        Returns:
+        - True if goal was updated, False otherwise
+        """
         if self.world.maslab.robot.turn_factor<5:
             coords = []
             for item in quad:
@@ -74,16 +86,23 @@ class Goal:
             return True
         return False
     
-    def get_centroid(self):
+    def get_centroid(self) -> tuple:
+        """
+        Compute the centroid of the goal in real-world coordinates
+        
+        Returns:
+        - Real world X, Y coordinates of goal centroid
+        """
         x = np.array([v[0] for v in self.coords])
         y = np.array([v[1] for v in self.coords])
 
-        # close the polygon
+        # Close the polygon
         x2 = np.append(x, x[0])
         y2 = np.append(y, y[0])
 
         A = 0.5 * np.sum(x2[:-1] * y2[1:] - x2[1:] * y2[:-1])
 
+        # Compute centroid
         Cx = (1/(6*A)) * np.sum((x2[:-1] + x2[1:]) *
                                 (x2[:-1] * y2[1:] - x2[1:] * y2[:-1]))
         Cy = (1/(6*A)) * np.sum((y2[:-1] + y2[1:]) *
@@ -91,10 +110,16 @@ class Goal:
 
         return Cx, Cy
 
-    def closest_point_on_segment(self, p, a, b):
+    def closest_point_on_segment(self, p: tuple | list, a: tuple | list, b: tuple | list) -> tuple:
         """
-        p = point
-        a,b = segment endpoints
+        Finds the closest point on a line segment to a given point.
+        
+        :param p: Point in 2D space
+        :param a: Start point of segment
+        :param b: End point of segment
+        
+        Returns:
+        - Closest point on segment [a, b] to point p
         """
         ap = p - a
         ab = b - a
@@ -102,7 +127,13 @@ class Goal:
         t = np.clip(t, 0, 1)
         return a + t * ab
 
-    def nearest_point(self):
+    def nearest_point(self) -> tuple:
+        """
+        Computes the nearest point on the goal to the robot.
+
+        Returns:
+        - Closest point
+        """
         p = np.array((self.world.maslab.x, self.world.maslab.y))
         vertices = np.array(self.coords)
 

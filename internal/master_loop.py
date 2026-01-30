@@ -6,18 +6,23 @@ import time
 from raven import Raven
 from world import Can
 
-# Global variables for mouse position
+# Mouse position
 mouse_x = -1
 mouse_y = -1
 
-# Get mouse position
 def mouse_callback(event, x, y, flags, param):
+    """
+    Mouse callback utility method.
+    """
     global mouse_x, mouse_y
     if event == cv2.EVENT_MOUSEMOVE:
         mouse_x = x
         mouse_y = y
 
 def remove_active_can(maslab):
+     """
+     Remove can from memory (post-deposit).
+     """
      for can in maslab.robot.active_cans:
         can.confirmed = False
         if can in maslab.world.green_cans:
@@ -28,6 +33,11 @@ def remove_active_can(maslab):
             maslab.world.yellow_cans.remove(maslab.robot.active_can)
 
 def generate_frame(maslab, cap):
+    """
+    Performs all operations necessary in one tick (create video output, map environment, command motors)
+    
+    :param cap: VideoCapture object
+    """
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -59,12 +69,13 @@ def generate_frame(maslab, cap):
 
         ########## ROBOT OPERATIONS ##########
 
-        # Last resort: sabatoge
-        if maslab.ticks_lost>1:
-            # maslab.speed = 75
-            # maslab.robot.go_to(-50, 450)
+        # Sabatoge as last resort
+        if maslab.ticks_lost>1000: # After ~1.5 minutes
+            maslab.speed = 75
+            maslab.robot.go_to(-50, 450)
             pass
         else:
+            # Add all cans with respective goals detected
             cans_list = []
             if maslab.world.red_goal is not None:
                 cans_list.append(maslab.world.red_cans)
@@ -75,31 +86,34 @@ def generate_frame(maslab, cap):
 
             if maslab.robot.depositing:
                 if not maslab.robot.is_motor_going(maslab.CHANNEL_3) or maslab.robot.active_can.color == Can.CanColor.YELLOW:
-                    # Remove current can from list
+                    # Reset varaibles
                     maslab.robot.aligned = False
-                    remove_active_can(maslab)
                     maslab.robot.can_obligated = False
                     maslab.robot.pursuing_can = False
+                    remove_active_can(maslab)
 
+                    # Bck up after depositing can
                     maslab.status = "RESUMING CAN SEARCH"
-                    #Look back at cans
                     if not maslab.robot.backing_up and not maslab.robot.backed_up:
                         for channel in (maslab.CHANNEL_1, maslab.CHANNEL_2):
-                            maslab.raven.set_motor_max_current(channel, 5) # Set motor current to 5 amps
-                            maslab.raven.set_motor_mode(channel, Raven.MotorMode.POSITION) # Set motor mode to POSITION
-                            maslab.raven.set_motor_pid(channel, p_gain = 100, i_gain = 0, d_gain = 0, percent = 20) # Set PID values and 20% effort to reduce speed
+                            maslab.raven.set_motor_max_current(channel, 5) 
+                            maslab.raven.set_motor_mode(channel, Raven.MotorMode.POSITION) 
+                            maslab.raven.set_motor_pid(channel, p_gain = 100, i_gain = 0, d_gain = 0, percent = 20)
                         maslab.robot.set_encoder_position(-1600, 1600, relative=True)
                         maslab.robot.backing_up = True
                         maslab.robot.rotating = True
                         maslab.robot.backed_up = False
+                        # Wait 25 ticks
                         maslab.wait_ticks = 25
 
+                    # Reset variables after wait
                     if maslab.wait_ticks > 0:
                         maslab.wait_ticks -= 1
                     elif maslab.wait_ticks == 0:
                         maslab.robot.backing_up = False
                         maslab.robot.backed_up = True
 
+                    # Look back at can line to affirm memory
                     if maslab.robot.backed_up:
                         maslab.robot.go_to(0, 300, turn_only=True)
                         if not maslab.robot.rotating:
@@ -129,7 +143,7 @@ def generate_frame(maslab, cap):
 
                 else:    
                     if not maslab.robot.pursuing_can:
-                        # Select can 
+                        # Select the best can to pick up
                         closest = None
                         for list in cans_list:
                             for can in list:
@@ -163,6 +177,8 @@ def generate_frame(maslab, cap):
                             maslab.robot.go_to(*maslab.robot.active_can.coords)
 
                     else:
+                        # If two cans have been taken (or one golden can), go to goal
+                        # Otherwise pick up second can
                         maslab.robot.active_cans.append(maslab.robot.active_can)
                         maslab.robot.take_can()
                         maslab.robot.aligned = False
@@ -188,11 +204,13 @@ def generate_frame(maslab, cap):
         ''' ================== END GAME LOGIC ================== '''
 
         cv2.imshow("Webcam", frame)
-        # Process GUI events and allow window to update
         key = cv2.waitKey(1) & 0xFF
 
 
 def begin_game_loop(self):
+    """
+    Begin game
+    """
     # Open and set up webcam
     cap = cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_width)
