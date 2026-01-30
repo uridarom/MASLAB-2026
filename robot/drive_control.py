@@ -4,7 +4,7 @@ import numpy as np
 
 def set_encoder_position(self, right: int, left: int, relative: bool, torque_r=1, torque_l=1):
     """
-    Sets both motors to given positions.
+    Sets both motors to respective given positions.
     Requires that both motors be set to POSITION mode first.
     
     :param right: Right encoder target

@@ -52,7 +52,7 @@ class WheelOdometry:
 
     def _push_pose(self):
         """
-        Save current pose with timestamp
+        Save current pose with timestamp.
         """
         t = time.time()
         self.pose_buffer.append((t, self.__x, self.__y, self.__theta))

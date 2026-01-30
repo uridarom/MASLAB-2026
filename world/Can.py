@@ -89,7 +89,7 @@ class Can:
     
     def get_list(self) -> list:
         """
-        Rwturns appropriate list of cans (of the same color)
+        Returns appropriate list of cans (of the same color)
         """
         if self.color == CanColor.RED:
             return self.world.red_cans

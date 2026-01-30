@@ -38,7 +38,7 @@ h, err = cv2.findHomography(np_pts_image, np_pts_ground)
 def transform_uv_to_xy(self, u: int, v: int, integer=False) -> float:
     """
     Transforms coordinates from camera frame to absolute
-    real-world coordidnates.
+    real-world coordinates.
     
     :param u: In-image X coordinate
     :param v: In-image Y coordinate
