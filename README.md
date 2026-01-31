@@ -1,3 +1,5 @@
+# Description
+
 Code for the Team 8 robot that competed in the MIT Mobile Autonomous Systems Laboratory (MASLAB) competition in 2026. 
 The robot came 2nd place in the competition.
 
@@ -18,3 +20,13 @@ The UI, featuring the 2D map:
 The robot:
 
 ![IMG_7826](https://github.com/user-attachments/assets/1dcda936-3ee9-46f8-8b31-9d1a316299a9)
+
+# Usage
+
+The program relies on the Raven library which is custom-made for the MASLAB competition. It interfaces with a custom PCB board created for the competition.
+To begin the program, run main.py with no arguments. After allowing the robot to map its environment, press "s" on the keyboard to begin the game loop and can collection.
+
+# AI Disclosure
+
+ChatGPT and Github Copilot were used for general advising and the creation of a small number of specific methods. These tools were also used for some documentation.
+All code and comments produced by AI were manually reviewed and modified as needed.
